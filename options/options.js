@@ -67,7 +67,13 @@ class OptionsManager {
         // Policy tab
         document.getElementById('addPolicyBtn').addEventListener('click', () => this.openPolicyEditor());
         document.getElementById('domainSearch').addEventListener('input', (e) => this.filterPolicies(e.target.value));
-        
+        // In setupEventListeners() method:
+document.getElementById('openDashboardFromOptions').addEventListener('click', (e) => {
+    e.preventDefault();
+    chrome.tabs.create({
+        url: chrome.runtime.getURL('dashboard/dashboard.html')
+    });
+});
         // Logs tab
         document.getElementById('logFilter').addEventListener('change', () => this.loadLogs());
         document.getElementById('logSearch').addEventListener('input', (e) => this.filterLogs(e.target.value));

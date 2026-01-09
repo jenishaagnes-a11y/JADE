@@ -4,10 +4,19 @@ class PopupManager {
         this.currentDomain = null;
         this.currentPolicy = null;
         this.isInitialized = false;
+        this.catState = 'happy';
         
         this.init();
     }
+    openDashboard() {
+    // Open dashboard in a new tab
+    chrome.tabs.create({
+        url: chrome.runtime.getURL('dashboard/dashboard.html')
+    });
     
+    // Close popup
+    window.close();
+}
     async init() {
         // Get current tab
         await this.getCurrentTab();
@@ -20,6 +29,10 @@ class PopupManager {
         
         // Setup event listeners
         this.setupEventListeners();
+        
+        // Setup interactive cat
+        this.setupInteractiveCat();
+        this.enhanceCatTooltip();
         
         // Update UI
         this.updateUI();
@@ -98,6 +111,9 @@ class PopupManager {
             if (toggle) {
                 toggle.addEventListener('change', () => this.onPolicyToggle(id));
             }
+        document.getElementById('openDashboard').addEventListener('click', () => 
+            this.openDashboard());
+
         });
         
         // Buttons
@@ -111,6 +127,135 @@ class PopupManager {
             this.openOptions();
         });
         document.getElementById('settingsBtn').addEventListener('click', () => this.openOptions('settings'));
+    }
+    
+    setupInteractiveCat() {
+        const catIndicator = document.getElementById('catIndicator');
+        if (!catIndicator) return;
+        
+        // Cat reacts to clicks
+        catIndicator.addEventListener('click', () => {
+            this.showCatMessage();
+            this.animateCatClick();
+        });
+        
+        // Cat reacts to hover
+        catIndicator.addEventListener('mouseenter', () => {
+            this.animateCatHover();
+        });
+        
+        catIndicator.addEventListener('mouseleave', () => {
+            this.resetCatAnimation();
+        });
+    }
+    
+    animateCatHover() {
+        const catFace = document.getElementById('catFace');
+        if (!catFace) return;
+        
+        // Add subtle bounce on hover
+        catFace.style.transform = 'scale(1.05)';
+        
+        // Twitch ears on hover
+        const ears = catFace.querySelectorAll('.ear');
+        ears.forEach(ear => {
+            ear.style.animation = 'earTwitch 0.3s ease-in-out';
+        });
+        
+        // Wider eyes on hover
+        const eyes = catFace.querySelectorAll('.eye');
+        eyes.forEach(eye => {
+            eye.style.transform = 'scaleX(1.2)';
+        });
+    }
+    
+    animateCatClick() {
+        const catFace = document.getElementById('catFace');
+        if (!catFace) return;
+        
+        // Play click animation based on current state
+        switch(this.catState) {
+            case 'happy':
+                catFace.style.animation = 'happyFloat 0.5s ease-in-out';
+                break;
+            case 'neutral':
+                catFace.style.animation = 'neutralSway 0.5s ease-in-out';
+                break;
+            case 'angry':
+                catFace.style.animation = 'angryShake 0.5s ease-in-out';
+                break;
+        }
+        
+        // Reset animation after it plays
+        setTimeout(() => {
+            this.updateCatFaceAnimation();
+        }, 500);
+    }
+    
+    resetCatAnimation() {
+        const catFace = document.getElementById('catFace');
+        if (!catFace) return;
+        
+        catFace.style.transform = 'scale(1)';
+        
+        const ears = catFace.querySelectorAll('.ear');
+        ears.forEach(ear => {
+            ear.style.animation = '';
+        });
+        
+        const eyes = catFace.querySelectorAll('.eye');
+        eyes.forEach(eye => {
+            eye.style.transform = '';
+        });
+    }
+    
+    enhanceCatTooltip() {
+        const catIndicator = document.getElementById('catIndicator');
+        if (!catIndicator) return;
+        
+        // Create custom tooltip
+        catIndicator.addEventListener('mouseenter', (e) => {
+            const rect = catIndicator.getBoundingClientRect();
+            const tooltip = document.createElement('div');
+            tooltip.className = 'cat-tooltip';
+            tooltip.textContent = 'Click me for safety advice!';
+            tooltip.style.cssText = `
+                position: fixed;
+                top: ${rect.top - 35}px;
+                left: ${rect.left - 20}px;
+                background: #2d3748;
+                color: white;
+                padding: 6px 12px;
+                border-radius: 8px;
+                font-size: 11px;
+                white-space: nowrap;
+                z-index: 10000;
+                animation: tooltipFade 0.2s ease;
+                font-weight: 500;
+            `;
+            
+            tooltip.id = 'catTooltip';
+            document.body.appendChild(tooltip);
+            
+            // Add arrow
+            const arrow = document.createElement('div');
+            arrow.style.cssText = `
+                position: absolute;
+                top: 100%;
+                left: 50%;
+                transform: translateX(-50%);
+                border: 6px solid transparent;
+                border-top-color: #2d3748;
+            `;
+            tooltip.appendChild(arrow);
+        });
+        
+        catIndicator.addEventListener('mouseleave', () => {
+            const tooltip = document.getElementById('catTooltip');
+            if (tooltip) {
+                tooltip.remove();
+            }
+        });
     }
     
     updateUI() {
@@ -139,7 +284,7 @@ class PopupManager {
                 }
             }
             
-            // Update risk score
+            // Update risk score and cat face
             this.updateRiskScore();
         }
         
@@ -172,6 +317,7 @@ class PopupManager {
                 riskElement.textContent = riskScore;
                 riskElement.className = 'risk-value';
                 
+                // Update risk color
                 if (riskScore <= 30) {
                     riskElement.classList.add('low');
                 } else if (riskScore <= 70) {
@@ -179,10 +325,178 @@ class PopupManager {
                 } else {
                     riskElement.classList.add('high');
                 }
+                
+                // Update cat face
+                this.updateCatFace(riskScore);
             }
         } catch (error) {
             console.error('Failed to update risk score:', error);
         }
+    }
+    
+    updateCatFace(riskScore) {
+        const catFace = document.getElementById('catFace');
+        
+        if (!catFace) return;
+        
+        // Remove all existing classes
+        catFace.className = 'cat-face';
+        
+        // Set face and class based on risk
+        if (riskScore <= 30) {
+            catFace.classList.add('happy');
+            this.catState = 'happy';
+            catFace.title = "😺 Purrfect! This site is safe!";
+        } else if (riskScore <= 70) {
+            catFace.classList.add('neutral');
+            this.catState = 'neutral';
+            catFace.title = "😼 Meow... This site is suspicious.";
+        } else {
+            catFace.classList.add('angry');
+            this.catState = 'angry';
+            catFace.title = "😾 HISS! This site is dangerous!";
+        }
+        
+        // Update animation
+        this.updateCatFaceAnimation();
+    }
+    
+    updateCatFaceAnimation() {
+        const catFace = document.getElementById('catFace');
+        if (!catFace) return;
+        
+        // Remove any existing animation
+        catFace.style.animation = '';
+        
+        // Set new animation based on state
+        switch(this.catState) {
+            case 'happy':
+                catFace.style.animation = 'happyFloat 3s ease-in-out infinite';
+                break;
+            case 'neutral':
+                catFace.style.animation = 'neutralSway 4s ease-in-out infinite';
+                break;
+            case 'angry':
+                catFace.style.animation = 'angryShake 0.5s ease-in-out infinite';
+                break;
+        }
+    }
+    
+    showCatMessage() {
+        const riskScore = parseInt(document.getElementById('riskScore').textContent) || 50;
+        const messages = {
+            low: [
+                "😺 Purrfect! Everything looks safe here!",
+                "😺 This site is as clean as a freshly licked paw!",
+                "😺 Meow! No suspicious activity detected!",
+                "😺 This site gets my paw of approval! 🐾",
+                "😺 Safe to browse! My whiskers aren't twitching at all!"
+            ],
+            medium: [
+                "😼 Hmm... Some fishy business going on here.",
+                "😼 Keep an eye on this one, human.",
+                "😼 I've seen worse, but stay alert.",
+                "😼 This site is on thin ice... or should I say thin mice? 🐭",
+                "😼 My tail is twitching... something's not quite right."
+            ],
+            high: [
+                "😾 HISS! Get away from this dangerous site!",
+                "😾 Warning! This site is more suspicious than a cat in a yarn shop!",
+                "😾 Red alert! Don't trust this site!",
+                "😾 This site is bad news! My fur is standing on end! 🐾",
+                "😾 Danger! This site is trying to steal your data!"
+            ]
+        };
+        
+        let category = 'medium';
+        if (riskScore <= 30) category = 'low';
+        else if (riskScore >= 70) category = 'high';
+        
+        const randomMessage = messages[category][Math.floor(Math.random() * messages[category].length)];
+        
+        // Create cute cat notification
+        const notification = document.createElement('div');
+        notification.className = 'cat-notification';
+        notification.innerHTML = `
+            <div class="cat-speech">${randomMessage}</div>
+            <div class="cat-paw">🐾</div>
+        `;
+        
+        notification.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 255, 255, 0.98);
+            padding: 20px;
+            border-radius: 15px;
+            border: 2px solid #667eea;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+            z-index: 10000;
+            animation: catPop 0.3s ease;
+            max-width: 280px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+        `;
+        
+        document.body.appendChild(notification);
+        
+        // Add animations
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes catPop {
+                from { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+                to { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+            }
+            .cat-paw {
+                animation: pawWave 1.5s ease-in-out infinite;
+            }
+            @keyframes pawWave {
+                0%, 100% { transform: rotate(0deg) scale(1); }
+                25% { transform: rotate(-20deg) scale(1.2); }
+                50% { transform: rotate(0deg) scale(1); }
+                75% { transform: rotate(20deg) scale(1.2); }
+            }
+        `;
+        document.head.appendChild(style);
+        
+        // Add close button
+        const closeBtn = document.createElement('button');
+        closeBtn.textContent = 'OK';
+        closeBtn.style.cssText = `
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            margin-top: 10px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background 0.2s;
+        `;
+        closeBtn.onmouseover = () => closeBtn.style.background = '#764ba2';
+        closeBtn.onmouseout = () => closeBtn.style.background = '#667eea';
+        closeBtn.onclick = () => {
+            notification.remove();
+            style.remove();
+        };
+        
+        notification.querySelector('.cat-paw').after(closeBtn);
+        
+        // Auto-remove after 5 seconds
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.style.animation = 'catPop 0.3s ease reverse';
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.remove();
+                    }
+                    if (style.parentNode) {
+                        style.remove();
+                    }
+                }, 300);
+            }
+        }, 5000);
     }
     
     updateRecentBlocks() {
@@ -372,6 +686,7 @@ class PopupManager {
             border-radius: 5px;
             z-index: 10000;
             animation: slideDown 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         `;
         
         document.body.appendChild(notification);
